@@ -17,7 +17,9 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', // or '*' for all origins
+}));
 app.use(express.json());             // ✅ JSON parser
 app.use(express.urlencoded({ extended: true })); // optional for form-data
 
