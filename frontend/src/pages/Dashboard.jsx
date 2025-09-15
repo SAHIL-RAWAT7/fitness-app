@@ -45,7 +45,7 @@ function Dashboard() {
 
       <header className="max-w-6xl mx-auto mb-10 text-center">
         <h1 className="text-3xl font-bold">
-          Welcome back, <span className="text-blue-600">{user?.name || 'User'}</span>!
+          Welcome back, <span className="text-blue-600">{user?.username || 'User'}</span>!
         </h1>
         <p className="text-gray-500 mt-2">Ready to crush your fitness goals today?</p>
       </header>
@@ -107,7 +107,8 @@ function Dashboard() {
         </Link>
       </section>
 
-      <section className="max-w-6xl mx-auto">
+      {/* Workouts Section */}
+      <section className="max-w-6xl mx-auto mb-10">
         <h2 className="text-2xl font-bold mb-6">Your Dashboard Workouts</h2>
         {dashboardWorkouts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

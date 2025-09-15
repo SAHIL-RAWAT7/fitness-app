@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import FormInput from '../components/FormInput';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Loader from '../components/Loader';
-import api from '../utils/api';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { AuthContext } from '../context/AuthContext';
+import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
 
 function Progress() {
   const [weight, setWeight] = useState('');
@@ -17,30 +18,27 @@ function Progress() {
   const [progressList, setProgressList] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchProgress();
-  }, []);
+  const { user } = useContext(AuthContext);
 
-  const fetchProgress = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/progress');
-      if (Array.isArray(response.data)) {
-        setProgressList(response.data);
-      } else if (Array.isArray(response.data.data)) {
-        setProgressList(response.data.data);
-      } else {
-        setProgressList([]);
-      }
-    } catch (err) {
-      console.error('Fetch progress error:', err.response || err);
-      const message = err.response?.data?.message || 'Failed to load progress.';
-      toast.error(message);
+  useEffect(() => {
+    if (user) {
+      loadProgress();
     }
-    setLoading(false);
+  }, [user]);
+
+  const loadProgress = () => {
+    if (!user) return;
+    const stored = localStorage.getItem(`dashboardProgress_${user.uid}`);
+    const progress = stored ? JSON.parse(stored) : [];
+    setProgressList(progress);
   };
 
-  const handleSubmit = async (e) => {
+  const saveProgress = (progress) => {
+    if (!user) return;
+    localStorage.setItem(`dashboardProgress_${user.uid}`, JSON.stringify(progress));
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!weight.trim() && !bodyFat.trim() && !chest.trim() && !waist.trim() && !hips.trim() && !notes.trim()) {
@@ -48,43 +46,42 @@ function Progress() {
       return;
     }
 
-    setLoading(true);
+    const newEntry = {
+      id: uuidv4(),
+      date: new Date().toISOString(),
+      weight: weight ? parseFloat(weight) : undefined,
+      bodyFat: bodyFat ? parseFloat(bodyFat) : undefined,
+      chest: chest ? parseFloat(chest) : undefined,
+      waist: waist ? parseFloat(waist) : undefined,
+      hips: hips ? parseFloat(hips) : undefined,
+      notes: notes.trim() || undefined,
+    };
 
-    try {
-      await api.post('/progress', {
-        weight: weight ? parseFloat(weight) : undefined,
-        bodyFat: bodyFat ? parseFloat(bodyFat) : undefined,
-        chest: chest ? parseFloat(chest) : undefined,
-        waist: waist ? parseFloat(waist) : undefined,
-        hips: hips ? parseFloat(hips) : undefined,
-        notes,
-      });
+    const updatedList = [newEntry, ...progressList];
+    setProgressList(updatedList);
+    saveProgress(updatedList);
 
-      toast.success('Progress added successfully!');
+    toast.success('Progress added successfully!');
 
-      // Reset form
-      setWeight('');
-      setBodyFat('');
-      setChest('');
-      setWaist('');
-      setHips('');
-      setNotes('');
+    // Reset form
+    setWeight('');
+    setBodyFat('');
+    setChest('');
+    setWaist('');
+    setHips('');
+    setNotes('');
+  };
 
-      fetchProgress();
-    } catch (err) {
-      console.error('Add progress error:', err.response || err);
-      const message =
-        err.response?.data?.message ||
-        (typeof err.response?.data === 'string' ? err.response.data : err.message) ||
-        'Failed to add progress.';
-      toast.error(message);
-    }
-
-    setLoading(false);
+  const handleRemoveProgress = (id) => {
+    const updatedList = progressList.filter((entry) => entry.id !== id);
+    setProgressList(updatedList);
+    saveProgress(updatedList);
+    toast.success('Progress entry removed!');
   };
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       <h2 className="text-2xl font-bold mb-4">Track Your Progress</h2>
 
       <form onSubmit={handleSubmit} className="mb-6 space-y-4">
@@ -136,10 +133,10 @@ function Progress() {
         <Loader />
       ) : (
         <div className="space-y-4">
-          {Array.isArray(progressList) && progressList.length > 0 ? (
+          {progressList.length > 0 ? (
             progressList.map((item) => (
               <Card
-                key={item._id}
+                key={item.id}
                 title={`Date: ${new Date(item.date).toLocaleDateString()}`}
                 description={
                   <>
@@ -149,6 +146,12 @@ function Progress() {
                     {item.waist !== undefined && <p>Waist: {item.waist} cm</p>}
                     {item.hips !== undefined && <p>Hips: {item.hips} cm</p>}
                     {item.notes && <p>Notes: {item.notes}</p>}
+                    <button
+                      onClick={() => handleRemoveProgress(item.id)}
+                      className="mt-2 px-3 py-1 text-white bg-red-500 rounded hover:bg-red-600"
+                    >
+                      Remove
+                    </button>
                   </>
                 }
               />
@@ -158,9 +161,6 @@ function Progress() {
           )}
         </div>
       )}
-
-      {/* Toast notifications container */}
-      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 }
